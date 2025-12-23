@@ -21,7 +21,9 @@ final class ServerProperties extends ServerFormPage
 
     protected static ?string $navigationLabel = 'Minecraft Properties';
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-device-gamepad';
-    protected static ?string $navigationGroup = 'Settings';
+    protected static string | \UnitEnum | null $navigationGroup = null;
+    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationParentItem = null;
     protected string $view = 'minecraft-properties::filament.server-properties';
 
     // Server is derived from the current Filament tenant (the selected server in the panel)
