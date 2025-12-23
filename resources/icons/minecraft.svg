@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Minecraft block">
+  <!-- Minecraft-style grass block (pixel-ish, original artwork) -->
+  <rect width="24" height="24" rx="3" fill="none"/>
+
+  <!-- Top grass layer -->
+  <rect x="3" y="2" width="18" height="6" fill="#3a7a1f"/>
+  <rect x="3" y="2" width="6" height="2" fill="#2f5f15"/>
+  <rect x="9" y="2" width="6" height="2" fill="#4a9e2b"/>
+  <rect x="15" y="2" width="6" height="2" fill="#2f5f15"/>
+
+  <!-- Middle (grass fringe) -->
+  <rect x="3" y="6" width="18" height="2" fill="#5aa83a"/>
+  <rect x="3" y="8" width="18" height="1" fill="#4c8f2f"/>
+
+  <!-- Dirt block body (pixelated) -->
+  <rect x="3" y="9" width="18" height="11" fill="#6b4f2b"/>
+  <rect x="3" y="9" width="6" height="3" fill="#573f1f"/>
+  <rect x="9" y="12" width="6" height="3" fill="#7a5a33"/>
+  <rect x="15" y="14" width="6" height="6" fill="#5a3f22"/>
+
+  <!-- Light/shadow accents -->
+  <rect x="4" y="10" width="2" height="2" fill="#8b5e3b"/>
+  <rect x="7" y="13" width="2" height="2" fill="#9b6f45"/>
+  <rect x="13" y="15" width="2" height="2" fill="#4b371e"/>
+
+  <!-- Outline subtle -->
+  <path d="M3 8v11a1 1 0 0 0 1 1h16V8H3z" fill="none" stroke="#000" stroke-opacity="0.06"/>
+</svg>
