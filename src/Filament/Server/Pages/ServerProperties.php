@@ -246,10 +246,10 @@ final class ServerProperties extends ServerFormPage
         'level_type' => [TextInput::class, ['label' => 'Level Type', 'prefixIcon' => 'tabler-cube']],
         'view_distance' => [TextInput::class, ['label' => 'View Distance', 'numeric' => true, 'minValue' => 2, 'prefixIcon' => 'tabler-eye']],
         'spawn_protection' => [TextInput::class, ['label' => 'Spawn Protection', 'numeric' => true, 'minValue' => 0, 'prefixIcon' => 'tabler-shield-star']],
-        'server_port' => [TextInput::class, ['label' => 'Server Port', 'numeric' => true, 'minValue' => 0, 'prefixIcon' => 'tabler-network']],
-        'query_port' => [TextInput::class, ['label' => 'Query Port', 'numeric' => true, 'minValue' => 0, 'prefixIcon' => 'tabler-network']],
+        'server_port' => [TextInput::class, ['label' => 'Server Port', 'numeric' => true, 'minValue' => 0, 'maxValue' => 65535, 'prefixIcon' => 'tabler-network']],
+        'query_port' => [TextInput::class, ['label' => 'Query Port', 'numeric' => true, 'minValue' => 0, 'maxValue' => 65535, 'prefixIcon' => 'tabler-network']],
         'rcon_password' => [TextInput::class, ['label' => 'RCON Password', 'prefixIcon' => 'tabler-key']],
-        'rcon_port' => [TextInput::class, ['label' => 'RCON Port', 'numeric' => true]],
+        'rcon_port' => [TextInput::class, ['label' => 'RCON Port', 'numeric' => true, 'minValue' => 0, 'maxValue' => 65535]],
         'server_ip' => [TextInput::class, ['label' => 'Server IP']],
         'network_compression_threshold' => [TextInput::class, ['label' => 'Network Compression Threshold', 'numeric' => true, 'prefixIcon' => 'tabler-arrows-merge']],
         'max_tick_time' => [TextInput::class, ['label' => 'Max Tick Time', 'numeric' => true, 'prefixIcon' => 'tabler-clock']],
@@ -434,7 +434,9 @@ final class ServerProperties extends ServerFormPage
         $networkComponents = array_map(fn($field) => $this->createComponent($field), array_filter(self::NETWORK_FIELDS, fn($field) => $this->isPropertyAvailable($field)));
 
         $advancedComponents = array_map(fn($field) => $this->createComponent($field), array_filter(self::ADVANCED_FIELDS, fn($field) => $this->isPropertyAvailable($field)));
-        $advancedComponents[] = Textarea::make('raw')->label('Raw server.properties')->rows(12)->helperText('Advanced: edit the raw file directly')->columnSpanFull();
+        $advancedComponents[] = Textarea::make('raw')->label('Raw server.properties')->rows(12)->helperText('Advanced: edit the raw file directly')->columnSpanFull()->reactive()->debounce(500)->afterStateUpdated(function ($state) {
+            $this->syncFromRaw($state);
+        });
 
         return parent::form($schema)
             ->components([
@@ -591,5 +593,20 @@ final class ServerProperties extends ServerFormPage
             if ($key && $value !== null) $carry[$key] = $value;
             return $carry;
         }, []);
+    }
+
+    private function syncFromRaw(string $rawContent): void
+    {
+        $parsed = $this->parseProperties($rawContent);
+        $reverseMapping = array_flip($this->propertyMapping);
+        $formData = [];
+        foreach ($parsed as $prop => $value) {
+            if (isset($reverseMapping[$prop])) {
+                $field = $reverseMapping[$prop];
+                $type = $this->fieldTypes[$field] ?? 'string';
+                $formData[$field] = $type === 'bool' ? $this->toBool($value) : $value;
+            }
+        }
+        $this->form->fill($formData);
     }
 }
