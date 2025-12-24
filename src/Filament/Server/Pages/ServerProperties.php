@@ -2,6 +2,7 @@
 
 namespace Pelican\MinecraftProperties\Filament\Server\Pages;
 
+use Filament\Actions\Action;
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Filament\Facades\Filament;
@@ -14,11 +15,10 @@ use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
 use App\Filament\Server\Pages\ServerFormPage;
-use Illuminate\Support\Str;
+use Filament\Notifications\Notification;
 
 final class ServerProperties extends ServerFormPage
 {
-
     protected static ?string $navigationLabel = 'Minecraft Properties';
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-device-gamepad';
     protected static string | \UnitEnum | null $navigationGroup = null;
@@ -26,7 +26,21 @@ final class ServerProperties extends ServerFormPage
     protected static ?string $navigationParentItem = null;
     protected string $view = 'minecraft-properties::filament.server-properties';
 
-    // Server is derived from the current Filament tenant (the selected server in the panel)
+    public static function canAccess(): bool
+    {
+        /** @var Server|null $server */
+        $server = Filament::getTenant();
+        if (! $server instanceof Server) {
+            return false;
+        }
+        try {
+            $repo = app(DaemonFileRepository::class)->setServer($server);
+            $repo->getContent('server.properties');
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
     public $motd;
     public $max_players;
@@ -38,7 +52,7 @@ final class ServerProperties extends ServerFormPage
     public $spawn_protection;
     public $whitelist;
     public $raw;
-    // additional properties
+
     public $accepts_transfers;
     public $allow_flight;
     public $allow_nether;
@@ -61,6 +75,10 @@ final class ServerProperties extends ServerFormPage
     public $spawn_monsters;
     public $sync_chunk_writes;
     public $query_port;
+
+    /** @var array<string,mixed> */
+    private array $originalData = [];
+    private string $originalRaw = '';
 
     public function mount(): void
     {
@@ -106,6 +124,9 @@ final class ServerProperties extends ServerFormPage
         if (isset($this->form)) {
             $this->form->fill($this->data);
         }
+
+        $this->originalData = $this->data;
+        $this->originalRaw = $this->raw ?? '';
     }
 
     public function form(Schema $schema): Schema
@@ -199,7 +220,24 @@ final class ServerProperties extends ServerFormPage
             ]);
     }
 
-    private function loadProperties(): void
+    public function getHeading(): ?string
+    {
+        return 'Minecraft Server Properties';
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('save')
+                ->label('Save')
+                ->color('primary')
+                ->icon('tabler-device-floppy')
+                ->action('save')
+                ->keyBindings(['mod+s']),
+        ];
+    }
+
+    public function loadProperties(): void
     {
         /** @var Server|null $server */
         $server = Filament::getTenant();
@@ -253,97 +291,102 @@ final class ServerProperties extends ServerFormPage
         /** @var Server|null $server */
         $server = Filament::getTenant();
         if (! $server instanceof Server) {
-            $this->notify('danger', 'Invalid server.');
+            Notification::make()
+                ->danger()
+                ->title('Invalid server.')
+                ->send();
             return;
         }
 
-        // If the user modified raw, prefer that; otherwise build from fields.
-        $content = $this->raw;
-        if (Str::of($this->raw)->trim()->isEmpty()) {
-            $lines = [];
-            $lines[] = "#Minecraft server properties";
-            $lines[] = "#" . now()->toDateTimeString();
-            $lines[] = "accepts-transfers=" . ($this->accepts_transfers ? 'true' : 'false');
-            $lines[] = "allow-flight=" . ($this->allow_flight ? 'true' : 'false');
-            $lines[] = "allow-nether=" . ($this->allow_nether ? 'true' : 'false');
-            $lines[] = "broadcast-console-to-ops=" . ($this->broadcast_console_to_ops ? 'true' : 'false');
-            $lines[] = "debug=" . ($this->debug ? 'true' : 'false');
-            if (! is_null($this->difficulty)) $lines[] = "difficulty=" . $this->difficulty;
-            $lines[] = "enable-command-block=" . ($this->enable_command_block ? 'true' : 'false');
-            $lines[] = "enable-query=" . ($this->enable_query ? 'true' : 'false');
-            $lines[] = "enable-rcon=" . ($this->enable_rcon ? 'true' : 'false');
-            $lines[] = "enable-status=true";
-            $lines[] = "force-gamemode=" . ($this->force_gamemode ? 'true' : 'false');
-            $lines[] = "gamemode=" . ($this->gamemode ?? 'survival');
-            $lines[] = "hardcore=" . ($this->hardcore ? 'true' : 'false');
-            $lines[] = "max-players=" . ($this->max_players ?? 20);
-            if (! is_null($this->max_tick_time)) $lines[] = "max-tick-time=" . $this->max_tick_time;
-            if (! is_null($this->level_name)) $lines[] = "level-name=" . $this->level_name;
-            if (! is_null($this->level_seed)) $lines[] = "level-seed=" . $this->level_seed;
-            if (! is_null($this->level_type)) $lines[] = "level-type=" . $this->level_type;
-            $lines[] = "motd=" . ($this->motd ?? 'A Minecraft Server');
-            $lines[] = "network-compression-threshold=" . ($this->network_compression_threshold ?? 256);
-            $lines[] = "online-mode=" . ($this->online_mode ? 'true' : 'false');
-            if (! is_null($this->op_permission_level)) $lines[] = "op-permission-level=" . $this->op_permission_level;
-            $lines[] = "pvp=" . ($this->pvp ? 'true' : 'false');
-            if (! is_null($this->rcon_password)) $lines[] = "rcon.password=" . $this->rcon_password;
-            if (! is_null($this->server_port)) $lines[] = "server-port=" . $this->server_port;
-            if (! is_null($this->query_port)) $lines[] = "query.port=" . $this->query_port;
-            if (! is_null($this->simulation_distance)) $lines[] = "simulation-distance=" . $this->simulation_distance;
-            $lines[] = "spawn-monsters=" . ($this->spawn_monsters ? 'true' : 'false');
-            $lines[] = "spawn-protection=" . ($this->spawn_protection ?? 0);
-            if (! is_null($this->sync_chunk_writes)) $lines[] = "sync-chunk-writes=" . ($this->sync_chunk_writes ? 'true' : 'false');
-            $lines[] = "view-distance=" . ($this->view_distance ?? 10);
-            $lines[] = "white-list=" . ($this->whitelist ? 'true' : 'false');
+        $currentState = $this->form->getState();
+        $get = fn($k, $fallback = null) => $currentState[$k] ?? $fallback;
 
-            $content = implode("\n", $lines) . "\n";
-        }
+        $lines = [];
+        $lines[] = '#Minecraft server properties';
+        $lines[] = '#' . now()->toDateTimeString();
+
+        $lines[] = 'accepts-transfers=' . ($get('accepts_transfers', false) ? 'true' : 'false');
+        $lines[] = 'allow-flight=' . ($get('allow_flight', false) ? 'true' : 'false');
+        $lines[] = 'allow-nether=' . ($get('allow_nether', false) ? 'true' : 'false');
+        $lines[] = 'broadcast-console-to-ops=' . ($get('broadcast_console_to_ops', false) ? 'true' : 'false');
+        $lines[] = 'debug=' . ($get('debug', false) ? 'true' : 'false');
+        if (! is_null($get('difficulty'))) $lines[] = 'difficulty=' . $get('difficulty');
+        $lines[] = 'enable-command-block=' . ($get('enable_command_block', false) ? 'true' : 'false');
+        $lines[] = 'enable-query=' . ($get('enable_query', false) ? 'true' : 'false');
+        $lines[] = 'enable-rcon=' . ($get('enable_rcon', false) ? 'true' : 'false');
+        $lines[] = 'enable-status=true';
+        $lines[] = 'force-gamemode=' . ($get('force_gamemode', false) ? 'true' : 'false');
+        $lines[] = 'gamemode=' . ($get('gamemode') ?? 'survival');
+        $lines[] = 'hardcore=' . ($get('hardcore', false) ? 'true' : 'false');
+        $lines[] = 'max-players=' . ($get('max_players') ?? 20);
+        if (! is_null($get('max_tick_time'))) $lines[] = 'max-tick-time=' . $get('max_tick_time');
+        if (! is_null($get('level_name'))) $lines[] = 'level-name=' . $get('level_name');
+        if (! is_null($get('level_seed'))) $lines[] = 'level-seed=' . $get('level_seed');
+        if (! is_null($get('level_type'))) $lines[] = 'level-type=' . $get('level_type');
+        $lines[] = 'motd=' . ($get('motd') ?? 'A Minecraft Server');
+        $lines[] = 'network-compression-threshold=' . ($get('network_compression_threshold') ?? 256);
+        $lines[] = 'online-mode=' . ($get('online_mode', true) ? 'true' : 'false');
+        if (! is_null($get('op_permission_level'))) $lines[] = 'op-permission-level=' . $get('op_permission_level');
+        $lines[] = 'pvp=' . ($get('pvp', true) ? 'true' : 'false');
+        if (! is_null($get('rcon_password'))) $lines[] = 'rcon.password=' . $get('rcon_password');
+        if (! is_null($get('server_port'))) $lines[] = 'server-port=' . $get('server_port');
+        if (! is_null($get('query_port'))) $lines[] = 'query.port=' . $get('query_port');
+        if (! is_null($get('simulation_distance'))) $lines[] = 'simulation-distance=' . $get('simulation_distance');
+        $lines[] = 'spawn-monsters=' . ($get('spawn_monsters', false) ? 'true' : 'false');
+        $lines[] = 'spawn-protection=' . ($get('spawn_protection') ?? 0);
+        if (! is_null($get('sync_chunk_writes'))) $lines[] = 'sync-chunk-writes=' . ($get('sync_chunk_writes') ? 'true' : 'false');
+        $lines[] = 'view-distance=' . ($get('view_distance') ?? 10);
+        $lines[] = 'white-list=' . ($get('whitelist', false) ? 'true' : 'false');
+
+        $content = implode("\n", $lines) . "\n";
 
         try {
             $repo = app(DaemonFileRepository::class)->setServer($server);
-
-            // Backup existing file first (timestamped). Don't fail the save if backup fails.
             try {
                 $existing = $repo->getContent('server.properties');
-                $backupName = 'server.properties.bak.' . now()->format('Ymd_His');
-                $repo->putContent($backupName, $existing);
             } catch (\Throwable $e) {
-                report($e);
+                $existing = null;
+            }
+
+            if (! is_null($existing)) {
+                $ts = now()->format('Ymd_His');
+                $repo->putContent("server.properties.bak.$ts", $existing);
             }
 
             $repo->putContent('server.properties', $content);
-            $this->notify('success', 'server.properties saved.');
-            $this->loadProperties();
+
+            $this->raw = $content;
+            $this->originalRaw = $content;
+            $this->originalData = $currentState;
+
+            Notification::make()
+                ->success()
+                ->title('Saved server.properties successfully.')
+                ->send();
         } catch (\Throwable $e) {
-            report($e);
-            $this->notify('danger', 'Failed to write server.properties.');
+            Notification::make()
+                ->danger()
+                ->title('Failed to save server.properties: ' . $e->getMessage())
+                ->send();
         }
     }
 
     private function parseProperties(string $content): array
     {
-        $lines = preg_split('/\r?\n/', $content);
-        $props = [];
-
+        $out = [];
+        $lines = preg_split('/\r\n|\r|\n/', $content);
         foreach ($lines as $line) {
             $line = trim($line);
             if ($line === '' || str_starts_with($line, '#')) {
                 continue;
             }
-
-            $pair = explode('=', $line, 2);
-            if (count($pair) === 2) {
-                $key = trim($pair[0]);
-                $val = trim($pair[1]);
-                $props[$key] = $val;
+            $parts = explode('=', $line, 2);
+            if (count($parts) === 2) {
+                $key = trim($parts[0]);
+                $value = trim($parts[1]);
+                $out[$key] = $value;
             }
         }
-
-        return $props;
-    }
-
-    private function notify(string $type, string $message): void
-    {
-        session()->flash('status', ['type' => $type, 'message' => $message]);
+        return $out;
     }
 }
