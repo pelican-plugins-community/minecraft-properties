@@ -1,0 +1,21 @@
+{
+    "id": "minecraft-properties",
+    "name": "Minecraft Server Properties",
+    "author": "Fritz",
+    "version": "1.0",
+    "description": "Edit the Minecraft server.properties file via the server panel.",
+    "category": "plugin",
+    "url": null,
+    "update_url": null,
+    "namespace": "Pelican\\MinecraftProperties",
+    "class": "MinecraftPropertiesPlugin",
+    "panels": [
+        "server"
+    ],
+    "panel_version": null,
+    "composer_packages": null,
+    "meta": {
+        "status": "enabled",
+        "status_message": null
+    }
+}
