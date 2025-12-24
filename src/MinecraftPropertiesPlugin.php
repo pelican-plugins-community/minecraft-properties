@@ -36,7 +36,10 @@ class MinecraftPropertiesPlugin implements Plugin
     public function boot(Panel $panel): void
     {
         try {
-            app('translator')->addNamespace('minecraft-properties', base_path('lang'));
+            $pluginLangPath = plugin_path($this->getId(), 'resources/lang');
+            if (is_dir($pluginLangPath)) {
+                app('translator')->addNamespace('minecraft-properties', $pluginLangPath);
+            }
         } catch (\InvalidArgumentException $e) {
             // Namespace already registered
         }
