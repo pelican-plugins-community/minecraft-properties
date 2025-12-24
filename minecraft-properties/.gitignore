@@ -1,0 +1,7 @@
+# Node / vendor artifacts if any
+node_modules/
+vendor/
+
+# IDE files
+.vscode/
+*.log

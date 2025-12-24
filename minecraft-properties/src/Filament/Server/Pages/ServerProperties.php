@@ -26,6 +26,22 @@ final class ServerProperties extends ServerFormPage
     protected static ?string $navigationParentItem = null;
     protected string $view = 'minecraft-properties::filament.server-properties';
 
+    public static function canAccess(): bool
+    {
+        /** @var Server|null $server */
+        $server = Filament::getTenant();
+        if (! $server instanceof Server) {
+            return false;
+        }
+        try {
+            $repo = app(DaemonFileRepository::class)->setServer($server);
+            $repo->getContent('server.properties');
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public $motd;
     public $max_players;
     public $online_mode;
