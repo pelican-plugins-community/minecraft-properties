@@ -116,6 +116,12 @@ final class ServerProperties extends ServerFormPage
         'query_port' => 'query.port',
     ];
 
+    /**
+     * Initialize the page state from the current server properties and populate the form.
+     *
+     * Loads server properties, maps them into the page's form data structure, fills the Filament form (if present),
+     * and stores snapshots in `originalData` and `originalRaw` for later comparison.
+     */
     public function mount(): void
     {
         parent::mount();
@@ -165,12 +171,24 @@ final class ServerProperties extends ServerFormPage
         $this->originalRaw = $this->raw ?? '';
     }
 
+    /**
+     * Check if the server.properties key mapped from a form field is available.
+     *
+     * @param string $field The form field name to check (will be mapped to the actual server.properties key).
+     * @return bool `true` if the mapped property exists in the available properties, `false` otherwise.
+     */
     private function isPropertyAvailable(string $field): bool
     {
         $property = $this->propertyMapping[$field] ?? $field;
         return in_array($property, $this->availableProperties);
     }
 
+    /**
+     * Build the Filament form schema for the server properties page using available server.properties fields.
+     *
+     * @param Schema $schema The base form schema to extend.
+     * @return Schema The composed schema containing sections and components for each available server property (including a raw editor).
+     */
     public function form(Schema $schema): Schema
     {
         $basicComponents = [];
@@ -315,6 +333,11 @@ final class ServerProperties extends ServerFormPage
             ]));
     }
 
+    /**
+     * Provide the page heading for the server properties page.
+     *
+     * @return string|null The heading text to display, or null if no heading should be shown.
+     */
     public function getHeading(): ?string
     {
         return 'Minecraft Server Properties';
@@ -332,6 +355,16 @@ final class ServerProperties extends ServerFormPage
         ];
     }
 
+    /**
+     * Load the server.properties file for the current tenant server and populate the page's property fields.
+     *
+     * Retrieves the tenant server, attempts to read and parse the server.properties file, sets
+     * internal availability and original property maps, and maps parsed values into the page's
+     * public properties (including boolean conversions). If no tenant server is available the
+     * method returns immediately. If reading the file fails, the form is reset and the method returns.
+     *
+     * @return void
+     */
     public function loadProperties(): void
     {
         /** @var Server|null $server */
@@ -384,6 +417,17 @@ final class ServerProperties extends ServerFormPage
         $this->raw = $content;
     }
 
+    /**
+     * Save the current form state into the server's server.properties file.
+     *
+     * If the current tenant is not a valid Server, a danger notification is shown and the method returns.
+     * If the raw editor value was changed, that raw content is written directly; otherwise the method
+     * maps available form fields to server.properties keys, serializes them to a key=value file (with a
+     * header comment and timestamp), and writes the resulting content to the server's daemon file repository.
+     *
+     * On successful write the page state is updated ($this->raw, $this->originalRaw, $this->originalData)
+     * and a success notification is shown. If writing fails a danger notification is shown containing the error message.
+     */
     public function save(): void
     {
         /** @var Server|null $server */
