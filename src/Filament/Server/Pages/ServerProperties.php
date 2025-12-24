@@ -17,12 +17,6 @@ use Filament\Schemas\Schema;
 use App\Filament\Server\Pages\ServerFormPage;
 use Filament\Notifications\Notification;
 
-/**
- * ServerProperties page for managing Minecraft server properties.
- *
- * This page dynamically displays form fields based on the properties present in the server's server.properties file.
- * Only available properties are shown, and the raw editor allows full control over the file content.
- */
 final class ServerProperties extends ServerFormPage
 {
     protected static ?string $navigationLabel = 'Minecraft Properties';
@@ -122,9 +116,6 @@ final class ServerProperties extends ServerFormPage
         'query_port' => 'query.port',
     ];
 
-    /**
-     * Mount the page and load server properties.
-     */
     public function mount(): void
     {
         parent::mount();
@@ -174,20 +165,18 @@ final class ServerProperties extends ServerFormPage
         $this->originalRaw = $this->raw ?? '';
     }
 
-    /**
-     * Check if a property is available in the server.properties file.
-     */
     private function isPropertyAvailable(string $field): bool
     {
         $property = $this->propertyMapping[$field] ?? $field;
         return in_array($property, $this->availableProperties);
     }
 
-    /**
-     * Build the form schema dynamically based on available properties.
-     */
     public function form(Schema $schema): Schema
     {
+        if (empty($this->availableProperties)) {
+            $this->loadProperties();
+        }
+
         $basicComponents = [];
         if ($this->isPropertyAvailable('motd')) {
             $basicComponents[] = TextInput::make('motd')->label('Server Message (motd)')->helperText('Shown in the server list.')->prefixIcon('tabler-chat');
@@ -282,42 +271,42 @@ final class ServerProperties extends ServerFormPage
         $advancedComponents[] = Textarea::make('raw')->label('Raw server.properties')->rows(12)->helperText('Advanced: edit the raw file directly')->columnSpanFull();
 
         return parent::form($schema)
-            ->components(array_filter([
-                !empty($basicComponents) ? Section::make('Basic')
+            ->components([
+                Section::make('Basic')
                     ->icon('tabler-info-circle')
                     ->columnSpanFull()
                     ->schema([
                         Fieldset::make()->columnSpanFull()->schema([
                             Grid::make()->columns(2)->schema($basicComponents),
                         ]),
-                    ]) : null,
+                    ]),
 
-                !empty($gameplayComponents) ? Section::make('Gameplay')
+                Section::make('Gameplay')
                     ->icon('tabler-sword')
                     ->columnSpanFull()
                     ->schema([
                         Fieldset::make()->columnSpanFull()->schema([
                             Grid::make()->columns(3)->schema($gameplayComponents),
                         ]),
-                    ]) : null,
+                    ]),
 
-                !empty($worldComponents) ? Section::make('World')
+                Section::make('World')
                     ->icon('tabler-world')
                     ->columnSpanFull()
                     ->schema([
                         Fieldset::make()->columnSpanFull()->schema([
                             Grid::make()->columns(3)->schema($worldComponents),
                         ]),
-                    ]) : null,
+                    ]),
 
-                !empty($networkComponents) ? Section::make('Network')
+                Section::make('Network')
                     ->icon('tabler-network')
                     ->columnSpanFull()
                     ->schema([
                         Fieldset::make()->columnSpanFull()->schema([
                             Grid::make()->columns(3)->schema($networkComponents),
                         ]),
-                    ]) : null,
+                    ]),
 
                 Section::make('Advanced & Raw')
                     ->icon('tabler-cog')
@@ -327,7 +316,7 @@ final class ServerProperties extends ServerFormPage
                             Grid::make()->columns(3)->schema($advancedComponents),
                         ]),
                     ]),
-            ]));
+            ]);
     }
 
     public function getHeading(): ?string
@@ -399,10 +388,6 @@ final class ServerProperties extends ServerFormPage
         $this->raw = $content;
     }
 
-    /**
-     * Save the server properties to the file.
-     * If the raw content was edited, save it directly; otherwise, build from form fields.
-     */
     public function save(): void
     {
         /** @var Server|null $server */
@@ -418,57 +403,51 @@ final class ServerProperties extends ServerFormPage
         $currentState = $this->form->getState();
         $get = fn($k, $fallback = null) => $currentState[$k] ?? $fallback;
 
-        // If raw content was edited, use it directly
-        if (!is_null($get('raw')) && trim($get('raw')) !== trim($this->originalRaw)) {
-            $content = $get('raw');
-        } else {
-            // Build content from form fields
-            $props = $this->originalProps;
+        $props = $this->originalProps;
 
-            // Update known properties
-            if ($this->isPropertyAvailable('accepts_transfers')) $props['accepts-transfers'] = $get('accepts_transfers', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('allow_flight')) $props['allow-flight'] = $get('allow_flight', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('allow_nether')) $props['allow-nether'] = $get('allow_nether', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('broadcast_console_to_ops')) $props['broadcast-console-to-ops'] = $get('broadcast_console_to_ops', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('debug')) $props['debug'] = $get('debug', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('difficulty') && !is_null($get('difficulty'))) $props['difficulty'] = $get('difficulty');
-            if ($this->isPropertyAvailable('enable_command_block')) $props['enable-command-block'] = $get('enable_command_block', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('enable_query')) $props['enable-query'] = $get('enable_query', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('enable_rcon')) $props['enable-rcon'] = $get('enable_rcon', false) ? 'true' : 'false';
-            $props['enable-status'] = 'true';
-            if ($this->isPropertyAvailable('force_gamemode')) $props['force-gamemode'] = $get('force_gamemode', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('gamemode')) $props['gamemode'] = $get('gamemode') ?? 'survival';
-            if ($this->isPropertyAvailable('hardcore')) $props['hardcore'] = $get('hardcore', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('max_players')) $props['max-players'] = $get('max_players') ?? 20;
-            if ($this->isPropertyAvailable('max_tick_time') && !is_null($get('max_tick_time'))) $props['max-tick-time'] = $get('max_tick_time');
-            if ($this->isPropertyAvailable('level_name') && !is_null($get('level_name'))) $props['level-name'] = $get('level_name');
-            if ($this->isPropertyAvailable('level_seed') && !is_null($get('level_seed'))) $props['level-seed'] = $get('level_seed');
-            if ($this->isPropertyAvailable('level_type') && !is_null($get('level_type'))) $props['level-type'] = $get('level_type');
-            if ($this->isPropertyAvailable('motd')) $props['motd'] = $get('motd') ?? 'A Minecraft Server';
-            if ($this->isPropertyAvailable('network_compression_threshold')) $props['network-compression-threshold'] = $get('network_compression_threshold') ?? 256;
-            if ($this->isPropertyAvailable('online_mode')) $props['online-mode'] = $get('online_mode', true) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('op_permission_level') && !is_null($get('op_permission_level'))) $props['op-permission-level'] = $get('op_permission_level');
-            if ($this->isPropertyAvailable('pvp')) $props['pvp'] = $get('pvp', true) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('rcon_password') && !is_null($get('rcon_password'))) $props['rcon.password'] = $get('rcon_password');
-            if ($this->isPropertyAvailable('server_port') && !is_null($get('server_port'))) $props['server-port'] = $get('server_port');
-            if ($this->isPropertyAvailable('query_port') && !is_null($get('query_port'))) $props['query.port'] = $get('query_port');
-            if ($this->isPropertyAvailable('simulation_distance') && !is_null($get('simulation_distance'))) $props['simulation-distance'] = $get('simulation_distance');
-            if ($this->isPropertyAvailable('spawn_monsters')) $props['spawn-monsters'] = $get('spawn_monsters', false) ? 'true' : 'false';
-            if ($this->isPropertyAvailable('spawn_protection')) $props['spawn-protection'] = $get('spawn_protection') ?? 0;
-            if ($this->isPropertyAvailable('sync_chunk_writes') && !is_null($get('sync_chunk_writes'))) $props['sync-chunk-writes'] = $get('sync_chunk_writes') ? 'true' : 'false';
-            if ($this->isPropertyAvailable('view_distance')) $props['view-distance'] = $get('view_distance') ?? 10;
-            if ($this->isPropertyAvailable('whitelist')) $props['white-list'] = $get('whitelist', false) ? 'true' : 'false';
+        // Update known properties
+        if ($this->isPropertyAvailable('accepts_transfers')) $props['accepts-transfers'] = $get('accepts_transfers', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('allow_flight')) $props['allow-flight'] = $get('allow_flight', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('allow_nether')) $props['allow-nether'] = $get('allow_nether', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('broadcast_console_to_ops')) $props['broadcast-console-to-ops'] = $get('broadcast_console_to_ops', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('debug')) $props['debug'] = $get('debug', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('difficulty') && !is_null($get('difficulty'))) $props['difficulty'] = $get('difficulty');
+        if ($this->isPropertyAvailable('enable_command_block')) $props['enable-command-block'] = $get('enable_command_block', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('enable_query')) $props['enable-query'] = $get('enable_query', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('enable_rcon')) $props['enable-rcon'] = $get('enable_rcon', false) ? 'true' : 'false';
+        $props['enable-status'] = 'true';
+        if ($this->isPropertyAvailable('force_gamemode')) $props['force-gamemode'] = $get('force_gamemode', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('gamemode')) $props['gamemode'] = $get('gamemode') ?? 'survival';
+        if ($this->isPropertyAvailable('hardcore')) $props['hardcore'] = $get('hardcore', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('max_players')) $props['max-players'] = $get('max_players') ?? 20;
+        if ($this->isPropertyAvailable('max_tick_time') && !is_null($get('max_tick_time'))) $props['max-tick-time'] = $get('max_tick_time');
+        if ($this->isPropertyAvailable('level_name') && !is_null($get('level_name'))) $props['level-name'] = $get('level_name');
+        if ($this->isPropertyAvailable('level_seed') && !is_null($get('level_seed'))) $props['level-seed'] = $get('level_seed');
+        if ($this->isPropertyAvailable('level_type') && !is_null($get('level_type'))) $props['level-type'] = $get('level_type');
+        if ($this->isPropertyAvailable('motd')) $props['motd'] = $get('motd') ?? 'A Minecraft Server';
+        if ($this->isPropertyAvailable('network_compression_threshold')) $props['network-compression-threshold'] = $get('network_compression_threshold') ?? 256;
+        if ($this->isPropertyAvailable('online_mode')) $props['online-mode'] = $get('online_mode', true) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('op_permission_level') && !is_null($get('op_permission_level'))) $props['op-permission-level'] = $get('op_permission_level');
+        if ($this->isPropertyAvailable('pvp')) $props['pvp'] = $get('pvp', true) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('rcon_password') && !is_null($get('rcon_password'))) $props['rcon.password'] = $get('rcon_password');
+        if ($this->isPropertyAvailable('server_port') && !is_null($get('server_port'))) $props['server-port'] = $get('server_port');
+        if ($this->isPropertyAvailable('query_port') && !is_null($get('query_port'))) $props['query.port'] = $get('query_port');
+        if ($this->isPropertyAvailable('simulation_distance') && !is_null($get('simulation_distance'))) $props['simulation-distance'] = $get('simulation_distance');
+        if ($this->isPropertyAvailable('spawn_monsters')) $props['spawn-monsters'] = $get('spawn_monsters', false) ? 'true' : 'false';
+        if ($this->isPropertyAvailable('spawn_protection')) $props['spawn-protection'] = $get('spawn_protection') ?? 0;
+        if ($this->isPropertyAvailable('sync_chunk_writes') && !is_null($get('sync_chunk_writes'))) $props['sync-chunk-writes'] = $get('sync_chunk_writes') ? 'true' : 'false';
+        if ($this->isPropertyAvailable('view_distance')) $props['view-distance'] = $get('view_distance') ?? 10;
+        if ($this->isPropertyAvailable('whitelist')) $props['white-list'] = $get('whitelist', false) ? 'true' : 'false';
 
-            $lines = [];
-            $lines[] = '#Minecraft server properties';
-            $lines[] = '#' . now()->toDateTimeString();
+        $lines = [];
+        $lines[] = '#Minecraft server properties';
+        $lines[] = '#' . now()->toDateTimeString();
 
-            foreach ($props as $key => $value) {
-                $lines[] = $key . '=' . $value;
-            }
-
-            $content = implode("\n", $lines) . "\n";
+        foreach ($props as $key => $value) {
+            $lines[] = $key . '=' . $value;
         }
+
+        $content = implode("\n", $lines) . "\n";
 
         try {
             $repo = app(DaemonFileRepository::class)->setServer($server);
@@ -490,9 +469,6 @@ final class ServerProperties extends ServerFormPage
         }
     }
 
-    /**
-     * Parse the server.properties content into an associative array.
-     */
     private function parseProperties(string $content): array
     {
         $out = [];
