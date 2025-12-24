@@ -21,9 +21,7 @@ final class ServerProperties extends ServerFormPage
 {
     protected static ?string $navigationLabel = 'Minecraft Properties';
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-device-gamepad';
-    protected static string | \UnitEnum | null $navigationGroup = null;
     protected static ?int $navigationSort = 3;
-    protected static ?string $navigationParentItem = null;
     protected string $view = 'minecraft-properties::filament.server-properties';
 
     public static function canAccess(): bool
@@ -50,14 +48,14 @@ final class ServerProperties extends ServerFormPage
     public $gamemode;
     public $view_distance;
     public $spawn_protection;
-    public $whitelist;
-    public $raw;
-
     public $accepts_transfers;
-    public $allow_flight;
-    public $allow_nether;
     public $broadcast_console_to_ops;
     public $debug;
+    public $op_permission_level;
+    public $simulation_distance;
+    public $sync_chunk_writes;
+    public $whitelist;
+    public $allow_nether;
     public $enable_command_block;
     public $enable_query;
     public $enable_rcon;
@@ -68,19 +66,227 @@ final class ServerProperties extends ServerFormPage
     public $level_type;
     public $max_tick_time;
     public $network_compression_threshold;
-    public $op_permission_level;
     public $rcon_password;
     public $server_port;
-    public $simulation_distance;
     public $spawn_monsters;
-    public $sync_chunk_writes;
     public $query_port;
+    public $enable_jmx_monitoring;
+    public $enable_status;
+    public $enforce_secure_profile;
+    public $enforce_whitelist;
+    public $entity_broadcast_range_percentage;
+    public $function_permission_level;
+    public $generate_structures;
+    public $generator_settings;
+    public $hide_online_players;
+    public $initial_disabled_packs;
+    public $initial_enabled_packs;
+    public $log_ips;
+    public $max_chained_neighbor_updates;
+    public $max_world_size;
+    public $player_idle_timeout;
+    public $prevent_proxy_connections;
+    public $rate_limit;
+    public $rcon_port;
+    public $resource_pack;
+    public $resource_pack_id;
+    public $resource_pack_prompt;
+    public $resource_pack_sha1;
+    public $server_ip;
+    public $spawn_animals;
+    public $spawn_npcs;
+    public $text_filtering_config;
+    public $use_native_transport;
 
     /** @var array<string,mixed> */
     private array $originalData = [];
     private string $originalRaw = '';
     private array $availableProperties = [];
     private array $originalProps = [];
+
+    private const BASIC_FIELDS = ['motd', 'max_players', 'online_mode', 'enable_query', 'enable_rcon', 'enable_status'];
+    private const GAMEPLAY_FIELDS = ['difficulty', 'gamemode', 'force_gamemode', 'hardcore', 'pvp', 'spawn_monsters', 'spawn_animals', 'spawn_npcs'];
+    private const WORLD_FIELDS = ['level_name', 'level_seed', 'level_type', 'view_distance', 'spawn_protection', 'generate_structures', 'generator_settings'];
+    private const NETWORK_FIELDS = ['server_port', 'query_port', 'rcon_password', 'rcon_port', 'server_ip'];
+    private const ADVANCED_FIELDS = ['network_compression_threshold', 'max_tick_time', 'enable_command_block', 'allow_flight', 'allow_nether', 'accepts_transfers', 'broadcast_console_to_ops', 'debug', 'op_permission_level', 'simulation_distance', 'sync_chunk_writes', 'whitelist', 'enable_jmx_monitoring', 'enable_status', 'enforce_secure_profile', 'enforce_whitelist', 'entity_broadcast_range_percentage', 'function_permission_level', 'generate_structures', 'generator_settings', 'hide_online_players', 'initial_disabled_packs', 'initial_enabled_packs', 'log_ips', 'max_chained_neighbor_updates', 'max_world_size', 'player_idle_timeout', 'prevent_proxy_connections', 'rate_limit', 'resource_pack', 'resource_pack_id', 'resource_pack_prompt', 'resource_pack_sha1', 'spawn_animals', 'spawn_npcs', 'text_filtering_config', 'use_native_transport'];
+    private const ALL_FIELDS = [
+        'motd', 'max_players', 'online_mode', 'pvp', 'difficulty', 'gamemode', 'view_distance', 'spawn_protection',
+        'accepts_transfers', 'allow_flight', 'broadcast_console_to_ops', 'debug', 'allow_nether', 'enable_command_block',
+        'enable_query', 'enable_rcon', 'force_gamemode', 'hardcore', 'level_name', 'level_seed', 'level_type',
+        'max_tick_time', 'network_compression_threshold', 'op_permission_level', 'rcon_password', 'server_port',
+        'simulation_distance', 'spawn_monsters', 'sync_chunk_writes', 'query_port', 'whitelist',
+        'enable_jmx_monitoring', 'enable_status', 'enforce_secure_profile', 'enforce_whitelist',
+        'entity_broadcast_range_percentage', 'function_permission_level', 'generate_structures', 'generator_settings',
+        'hide_online_players', 'initial_disabled_packs', 'initial_enabled_packs', 'log_ips', 'max_chained_neighbor_updates',
+        'max_world_size', 'player_idle_timeout', 'prevent_proxy_connections', 'rate_limit', 'rcon_port',
+        'resource_pack', 'resource_pack_id', 'resource_pack_prompt', 'resource_pack_sha1', 'server_ip',
+        'spawn_animals', 'spawn_npcs', 'text_filtering_config', 'use_native_transport'
+    ];
+
+    private array $fieldTypes = [
+        'motd' => 'string',
+        'max_players' => 'string',
+        'online_mode' => 'bool',
+        'pvp' => 'bool',
+        'difficulty' => 'string',
+        'gamemode' => 'string',
+        'view_distance' => 'string',
+        'spawn_protection' => 'string',
+        'accepts_transfers' => 'bool',
+        'allow_flight' => 'bool',
+        'broadcast_console_to_ops' => 'bool',
+        'debug' => 'bool',
+        'allow_nether' => 'bool',
+        'enable_command_block' => 'bool',
+        'enable_query' => 'bool',
+        'enable_rcon' => 'bool',
+        'force_gamemode' => 'bool',
+        'hardcore' => 'bool',
+        'level_name' => 'string',
+        'level_seed' => 'string',
+        'level_type' => 'string',
+        'max_tick_time' => 'string',
+        'network_compression_threshold' => 'string',
+        'op_permission_level' => 'string',
+        'rcon_password' => 'string',
+        'server_port' => 'string',
+        'simulation_distance' => 'string',
+        'spawn_monsters' => 'bool',
+        'sync_chunk_writes' => 'bool',
+        'query_port' => 'string',
+        'whitelist' => 'bool',
+        'enable_jmx_monitoring' => 'bool',
+        'enable_status' => 'bool',
+        'enforce_secure_profile' => 'bool',
+        'enforce_whitelist' => 'bool',
+        'entity_broadcast_range_percentage' => 'string',
+        'function_permission_level' => 'string',
+        'generate_structures' => 'bool',
+        'generator_settings' => 'string',
+        'hide_online_players' => 'bool',
+        'initial_disabled_packs' => 'string',
+        'initial_enabled_packs' => 'string',
+        'log_ips' => 'bool',
+        'max_chained_neighbor_updates' => 'string',
+        'max_world_size' => 'string',
+        'player_idle_timeout' => 'string',
+        'prevent_proxy_connections' => 'bool',
+        'rate_limit' => 'string',
+        'rcon_port' => 'string',
+        'resource_pack' => 'string',
+        'resource_pack_id' => 'string',
+        'resource_pack_prompt' => 'string',
+        'resource_pack_sha1' => 'string',
+        'server_ip' => 'string',
+        'spawn_animals' => 'bool',
+        'spawn_npcs' => 'bool',
+        'text_filtering_config' => 'string',
+        'use_native_transport' => 'bool',
+    ];
+
+    private array $defaultValues = [
+        'motd' => 'A Minecraft Server',
+        'max-players' => 20,
+        'gamemode' => 'survival',
+        'online-mode' => 'true',
+        'pvp' => 'true',
+        'difficulty' => 'normal',
+        'view-distance' => 10,
+        'spawn-protection' => 0,
+        'network-compression-threshold' => 256,
+        'max-tick-time' => 60000,
+        'op-permission-level' => 4,
+        'simulation-distance' => 10,
+        'query.port' => 25565,
+        'rcon.password' => '',
+        'server-port' => 25565,
+        'generate-structures' => 'true',
+        'max-world-size' => 29999984,
+        'player-idle-timeout' => 0,
+        'rate-limit' => 0,
+        'rcon.port' => 25575,
+        'resource-pack' => '',
+        'resource-pack-id' => '',
+        'resource-pack-prompt' => '',
+        'resource-pack-sha1' => '',
+        'server-ip' => '',
+        'text-filtering-config' => '',
+        'entity-broadcast-range-percentage' => 100,
+        'function-permission-level' => 2,
+        'generator-settings' => '',
+        'initial-disabled-packs' => '',
+        'initial-enabled-packs' => '',
+        'max-chained-neighbor-updates' => 1000000,
+    ];
+
+    private array $componentMapping = [
+        'motd' => [TextInput::class, ['label' => 'Server Message (motd)', 'prefixIcon' => 'tabler-chat', 'helperText' => 'Shown in the server list.']],
+        'max_players' => [TextInput::class, ['label' => 'Max Players', 'numeric' => true, 'minValue' => 0, 'prefixIcon' => 'tabler-users']],
+        'online_mode' => [Toggle::class, ['label' => 'Online Mode']],
+        'enable_query' => [Toggle::class, ['label' => 'Enable Query', 'helperText' => 'Allow Game Query (server list stats).']],
+        'enable_rcon' => [Toggle::class, ['label' => 'Enable RCON']],
+        'difficulty' => [Select::class, ['label' => 'Difficulty', 'options' => [
+            'peaceful' => 'Peaceful',
+            'easy' => 'Easy',
+            'normal' => 'Normal',
+            'hard' => 'Hard',
+        ], 'default' => 'normal']],
+        'gamemode' => [Select::class, ['label' => 'Default Gamemode', 'options' => [
+            'survival' => 'Survival',
+            'creative' => 'Creative',
+            'adventure' => 'Adventure',
+            'spectator' => 'Spectator',
+        ], 'default' => 'survival']],
+        'force_gamemode' => [Toggle::class, ['label' => 'Force Gamemode']],
+        'hardcore' => [Toggle::class, ['label' => 'Hardcore']],
+        'pvp' => [Toggle::class, ['label' => 'PVP']],
+        'spawn_monsters' => [Toggle::class, ['label' => 'Spawn Monsters']],
+        'level_name' => [TextInput::class, ['label' => 'Level Name', 'prefixIcon' => 'tabler-file-text']],
+        'level_seed' => [TextInput::class, ['label' => 'Level Seed', 'prefixIcon' => 'tabler-hash']],
+        'level_type' => [TextInput::class, ['label' => 'Level Type', 'prefixIcon' => 'tabler-cube']],
+        'view_distance' => [TextInput::class, ['label' => 'View Distance', 'numeric' => true, 'minValue' => 2, 'prefixIcon' => 'tabler-eye']],
+        'spawn_protection' => [TextInput::class, ['label' => 'Spawn Protection', 'numeric' => true, 'minValue' => 0, 'prefixIcon' => 'tabler-shield-star']],
+        'server_port' => [TextInput::class, ['label' => 'Server Port', 'numeric' => true, 'minValue' => 0, 'prefixIcon' => 'tabler-network']],
+        'query_port' => [TextInput::class, ['label' => 'Query Port', 'numeric' => true, 'minValue' => 0, 'prefixIcon' => 'tabler-network']],
+        'rcon_password' => [TextInput::class, ['label' => 'RCON Password', 'prefixIcon' => 'tabler-key']],
+        'network_compression_threshold' => [TextInput::class, ['label' => 'Network Compression Threshold', 'numeric' => true, 'prefixIcon' => 'tabler-arrows-merge']],
+        'max_tick_time' => [TextInput::class, ['label' => 'Max Tick Time', 'numeric' => true, 'prefixIcon' => 'tabler-clock']],
+        'enable_command_block' => [Toggle::class, ['label' => 'Enable Command Block']],
+        'allow_flight' => [Toggle::class, ['label' => 'Allow Flight']],
+        'allow_nether' => [Toggle::class, ['label' => 'Allow Nether']],
+        'accepts_transfers' => [Toggle::class, ['label' => 'Accepts Transfers']],
+        'broadcast_console_to_ops' => [Toggle::class, ['label' => 'Broadcast Console to Ops']],
+        'debug' => [Toggle::class, ['label' => 'Debug']],
+        'op_permission_level' => [TextInput::class, ['label' => 'OP Permission Level', 'numeric' => true]],
+        'simulation_distance' => [TextInput::class, ['label' => 'Simulation Distance', 'numeric' => true]],
+        'sync_chunk_writes' => [Toggle::class, ['label' => 'Sync Chunk Writes']],
+        'whitelist' => [Toggle::class, ['label' => 'Whitelist']],
+        'enable_jmx_monitoring' => [Toggle::class, ['label' => 'Enable JMX Monitoring']],
+        'enable_status' => [Toggle::class, ['label' => 'Enable Status']],
+        'enforce_secure_profile' => [Toggle::class, ['label' => 'Enforce Secure Profile']],
+        'enforce_whitelist' => [Toggle::class, ['label' => 'Enforce Whitelist']],
+        'entity_broadcast_range_percentage' => [TextInput::class, ['label' => 'Entity Broadcast Range Percentage', 'numeric' => true]],
+        'function_permission_level' => [TextInput::class, ['label' => 'Function Permission Level', 'numeric' => true]],
+        'generate_structures' => [Toggle::class, ['label' => 'Generate Structures']],
+        'generator_settings' => [TextInput::class, ['label' => 'Generator Settings']],
+        'hide_online_players' => [Toggle::class, ['label' => 'Hide Online Players']],
+        'initial_disabled_packs' => [TextInput::class, ['label' => 'Initial Disabled Packs']],
+        'initial_enabled_packs' => [TextInput::class, ['label' => 'Initial Enabled Packs']],
+        'log_ips' => [Toggle::class, ['label' => 'Log IPs']],
+        'max_chained_neighbor_updates' => [TextInput::class, ['label' => 'Max Chained Neighbor Updates', 'numeric' => true]],
+        'max_world_size' => [TextInput::class, ['label' => 'Max World Size', 'numeric' => true]],
+        'player_idle_timeout' => [TextInput::class, ['label' => 'Player Idle Timeout', 'numeric' => true]],
+        'prevent_proxy_connections' => [Toggle::class, ['label' => 'Prevent Proxy Connections']],
+        'rate_limit' => [TextInput::class, ['label' => 'Rate Limit', 'numeric' => true]],
+        'resource_pack' => [TextInput::class, ['label' => 'Resource Pack']],
+        'resource_pack_id' => [TextInput::class, ['label' => 'Resource Pack ID']],
+        'resource_pack_prompt' => [TextInput::class, ['label' => 'Resource Pack Prompt']],
+        'resource_pack_sha1' => [TextInput::class, ['label' => 'Resource Pack SHA1']],
+        'spawn_animals' => [Toggle::class, ['label' => 'Spawn Animals']],
+        'spawn_npcs' => [Toggle::class, ['label' => 'Spawn NPCs']],
+        'text_filtering_config' => [TextInput::class, ['label' => 'Text Filtering Config']],
+        'use_native_transport' => [Toggle::class, ['label' => 'Use Native Transport']],
+    ];
 
     private array $propertyMapping = [
         'motd' => 'motd',
@@ -91,12 +297,11 @@ final class ServerProperties extends ServerFormPage
         'gamemode' => 'gamemode',
         'view_distance' => 'view-distance',
         'spawn_protection' => 'spawn-protection',
-        'whitelist' => 'white-list',
         'accepts_transfers' => 'accepts-transfers',
         'allow_flight' => 'allow-flight',
-        'allow_nether' => 'allow-nether',
         'broadcast_console_to_ops' => 'broadcast-console-to-ops',
         'debug' => 'debug',
+        'allow_nether' => 'allow-nether',
         'enable_command_block' => 'enable-command-block',
         'enable_query' => 'enable-query',
         'enable_rcon' => 'enable-rcon',
@@ -114,7 +319,80 @@ final class ServerProperties extends ServerFormPage
         'spawn_monsters' => 'spawn-monsters',
         'sync_chunk_writes' => 'sync-chunk-writes',
         'query_port' => 'query.port',
+        'whitelist' => 'white-list',
+        'enable_jmx_monitoring' => 'enable-jmx-monitoring',
+        'enable_status' => 'enable-status',
+        'enforce_secure_profile' => 'enforce-secure-profile',
+        'enforce_whitelist' => 'enforce-whitelist',
+        'entity_broadcast_range_percentage' => 'entity-broadcast-range-percentage',
+        'function_permission_level' => 'function-permission-level',
+        'generate_structures' => 'generate-structures',
+        'generator_settings' => 'generator-settings',
+        'hide_online_players' => 'hide-online-players',
+        'initial_disabled_packs' => 'initial-disabled-packs',
+        'initial_enabled_packs' => 'initial-enabled-packs',
+        'log_ips' => 'log-ips',
+        'max_chained_neighbor_updates' => 'max-chained-neighbor-updates',
+        'max_world_size' => 'max-world-size',
+        'player_idle_timeout' => 'player-idle-timeout',
+        'prevent_proxy_connections' => 'prevent-proxy-connections',
+        'rate_limit' => 'rate-limit',
+        'rcon_port' => 'rcon.port',
+        'resource_pack' => 'resource-pack',
+        'resource_pack_id' => 'resource-pack-id',
+        'resource_pack_prompt' => 'resource-pack-prompt',
+        'resource_pack_sha1' => 'resource-pack-sha1',
+        'server_ip' => 'server-ip',
+        'spawn_animals' => 'spawn-animals',
+        'spawn_npcs' => 'spawn-npcs',
+        'text_filtering_config' => 'text-filtering-config',
+        'use_native_transport' => 'use-native-transport',
     ];
+
+    private function toBool(?string $value, bool $default = false): bool
+    {
+        return is_null($value) ? $default : filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private function createComponent(string $field)
+    {
+        if (!isset($this->componentMapping[$field])) {
+            throw new \InvalidArgumentException("Unknown field: $field");
+        }
+
+        [$class, $options] = $this->componentMapping[$field];
+
+        $component = $class::make($field);
+        foreach ($options as $key => $value) {
+            if (method_exists($component, $key)) {
+                $component->$key($value);
+            }
+        }
+
+        return $component;
+    }
+
+    private function mapStateToProperties(array $state): array
+    {
+        $props = $this->originalProps;
+
+        foreach ($this->propertyMapping as $field => $property) {
+            if (!$this->isPropertyAvailable($field)) continue;
+
+            $value = $state[$field] ?? $this->defaultValues[$property] ?? null;
+
+            if (is_bool($value)) {
+                $props[$property] = $value ? 'true' : 'false';
+            } elseif (!is_null($value)) {
+                $props[$property] = (string) $value;
+            }
+        }
+
+        // Immer gesetzte Properties
+        $props['enable-status'] = 'true';
+
+        return $props;
+    }
 
     public function mount(): void
     {
@@ -122,40 +400,8 @@ final class ServerProperties extends ServerFormPage
 
         $this->loadProperties();
 
-        $this->data = [
-            'motd' => $this->motd,
-            'max_players' => $this->max_players,
-            'online_mode' => $this->online_mode,
-            'pvp' => $this->pvp,
-            'difficulty' => $this->difficulty,
-            'gamemode' => $this->gamemode,
-            'view_distance' => $this->view_distance,
-            'spawn_protection' => $this->spawn_protection,
-            'whitelist' => $this->whitelist,
-            'accepts_transfers' => $this->accepts_transfers,
-            'allow_flight' => $this->allow_flight,
-            'allow_nether' => $this->allow_nether,
-            'broadcast_console_to_ops' => $this->broadcast_console_to_ops,
-            'debug' => $this->debug,
-            'enable_command_block' => $this->enable_command_block,
-            'enable_query' => $this->enable_query,
-            'enable_rcon' => $this->enable_rcon,
-            'force_gamemode' => $this->force_gamemode,
-            'hardcore' => $this->hardcore,
-            'level_name' => $this->level_name,
-            'level_seed' => $this->level_seed,
-            'level_type' => $this->level_type,
-            'max_tick_time' => $this->max_tick_time,
-            'network_compression_threshold' => $this->network_compression_threshold,
-            'op_permission_level' => $this->op_permission_level,
-            'rcon_password' => $this->rcon_password,
-            'server_port' => $this->server_port,
-            'simulation_distance' => $this->simulation_distance,
-            'spawn_monsters' => $this->spawn_monsters,
-            'sync_chunk_writes' => $this->sync_chunk_writes,
-            'query_port' => $this->query_port,
-            'raw' => $this->raw,
-        ];
+        $this->data = array_combine(self::ALL_FIELDS, array_map(fn($field) => $this->{$field}, self::ALL_FIELDS));
+        $this->data['raw'] = $this->raw;
 
         if (isset($this->form)) {
             $this->form->fill($this->data);
@@ -177,97 +423,15 @@ final class ServerProperties extends ServerFormPage
             $this->loadProperties();
         }
 
-        $basicComponents = [];
-        if ($this->isPropertyAvailable('motd')) {
-            $basicComponents[] = TextInput::make('motd')->label('Server Message (motd)')->helperText('Shown in the server list.')->prefixIcon('tabler-chat');
-        }
-        if ($this->isPropertyAvailable('max_players')) {
-            $basicComponents[] = TextInput::make('max_players')->label('Max Players')->numeric()->minValue(0)->prefixIcon('tabler-users');
-        }
-        if ($this->isPropertyAvailable('online_mode')) {
-            $basicComponents[] = Toggle::make('online_mode')->label('Online Mode');
-        }
-        if ($this->isPropertyAvailable('enable_query')) {
-            $basicComponents[] = Toggle::make('enable_query')->label('Enable Query')->helperText('Allow Game Query (server list stats).');
-        }
-        if ($this->isPropertyAvailable('enable_rcon')) {
-            $basicComponents[] = Toggle::make('enable_rcon')->label('Enable RCON');
-        }
+        $basicComponents = array_map(fn($field) => $this->createComponent($field), array_filter(self::BASIC_FIELDS, fn($field) => $this->isPropertyAvailable($field)));
 
-        $gameplayComponents = [];
-        if ($this->isPropertyAvailable('difficulty')) {
-            $gameplayComponents[] = Select::make('difficulty')->label('Difficulty')->options([
-                'peaceful' => 'Peaceful',
-                'easy' => 'Easy',
-                'normal' => 'Normal',
-                'hard' => 'Hard',
-            ])->default('normal');
-        }
-        if ($this->isPropertyAvailable('gamemode')) {
-            $gameplayComponents[] = Select::make('gamemode')->label('Default Gamemode')->options([
-                'survival' => 'Survival',
-                'creative' => 'Creative',
-                'adventure' => 'Adventure',
-                'spectator' => 'Spectator',
-            ])->default('survival');
-        }
-        if ($this->isPropertyAvailable('force_gamemode')) {
-            $gameplayComponents[] = Toggle::make('force_gamemode')->label('Force Gamemode');
-        }
-        if ($this->isPropertyAvailable('hardcore')) {
-            $gameplayComponents[] = Toggle::make('hardcore')->label('Hardcore');
-        }
-        if ($this->isPropertyAvailable('pvp')) {
-            $gameplayComponents[] = Toggle::make('pvp')->label('PVP');
-        }
-        if ($this->isPropertyAvailable('spawn_monsters')) {
-            $gameplayComponents[] = Toggle::make('spawn_monsters')->label('Spawn Monsters');
-        }
+        $gameplayComponents = array_map(fn($field) => $this->createComponent($field), array_filter(self::GAMEPLAY_FIELDS, fn($field) => $this->isPropertyAvailable($field)));
 
-        $worldComponents = [];
-        if ($this->isPropertyAvailable('level_name')) {
-            $worldComponents[] = TextInput::make('level_name')->label('Level Name')->prefixIcon('tabler-file-text');
-        }
-        if ($this->isPropertyAvailable('level_seed')) {
-            $worldComponents[] = TextInput::make('level_seed')->label('Level Seed')->prefixIcon('tabler-hash');
-        }
-        if ($this->isPropertyAvailable('level_type')) {
-            $worldComponents[] = TextInput::make('level_type')->label('Level Type')->prefixIcon('tabler-cube');
-        }
-        if ($this->isPropertyAvailable('view_distance')) {
-            $worldComponents[] = TextInput::make('view_distance')->label('View Distance')->numeric()->minValue(2)->prefixIcon('tabler-eye');
-        }
-        if ($this->isPropertyAvailable('spawn_protection')) {
-            $worldComponents[] = TextInput::make('spawn_protection')->label('Spawn Protection')->numeric()->minValue(0)->prefixIcon('tabler-shield-star');
-        }
+        $worldComponents = array_map(fn($field) => $this->createComponent($field), array_filter(self::WORLD_FIELDS, fn($field) => $this->isPropertyAvailable($field)));
 
-        $networkComponents = [];
-        if ($this->isPropertyAvailable('server_port')) {
-            $networkComponents[] = TextInput::make('server_port')->label('Server Port')->numeric()->minValue(0)->prefixIcon('tabler-network');
-        }
-        if ($this->isPropertyAvailable('query_port')) {
-            $networkComponents[] = TextInput::make('query_port')->label('Query Port')->numeric()->minValue(0)->prefixIcon('tabler-network');
-        }
-        if ($this->isPropertyAvailable('rcon_password')) {
-            $networkComponents[] = TextInput::make('rcon_password')->label('RCON Password')->prefixIcon('tabler-key');
-        }
+        $networkComponents = array_map(fn($field) => $this->createComponent($field), array_filter(self::NETWORK_FIELDS, fn($field) => $this->isPropertyAvailable($field)));
 
-        $advancedComponents = [];
-        if ($this->isPropertyAvailable('network_compression_threshold')) {
-            $advancedComponents[] = TextInput::make('network_compression_threshold')->label('Network Compression Threshold')->numeric()->prefixIcon('tabler-arrows-merge');
-        }
-        if ($this->isPropertyAvailable('max_tick_time')) {
-            $advancedComponents[] = TextInput::make('max_tick_time')->label('Max Tick Time')->numeric()->prefixIcon('tabler-clock');
-        }
-        if ($this->isPropertyAvailable('enable_command_block')) {
-            $advancedComponents[] = Toggle::make('enable_command_block')->label('Enable Command Block');
-        }
-        if ($this->isPropertyAvailable('allow_flight')) {
-            $advancedComponents[] = Toggle::make('allow_flight')->label('Allow Flight');
-        }
-        if ($this->isPropertyAvailable('allow_nether')) {
-            $advancedComponents[] = Toggle::make('allow_nether')->label('Allow Nether');
-        }
+        $advancedComponents = array_map(fn($field) => $this->createComponent($field), array_filter(self::ADVANCED_FIELDS, fn($field) => $this->isPropertyAvailable($field)));
         $advancedComponents[] = Textarea::make('raw')->label('Raw server.properties')->rows(12)->helperText('Advanced: edit the raw file directly')->columnSpanFull();
 
         return parent::form($schema)
@@ -356,35 +520,18 @@ final class ServerProperties extends ServerFormPage
         $this->availableProperties = array_keys($props);
         $this->originalProps = $props;
 
-        $this->motd = $props['motd'] ?? '';
-        $this->max_players = $props['max-players'] ?? $props['max_players'] ?? null;
-        $this->online_mode = isset($props['online-mode']) ? filter_var($props['online-mode'], FILTER_VALIDATE_BOOLEAN) : ($props['online_mode'] ?? true);
-        $this->pvp = isset($props['pvp']) ? filter_var($props['pvp'], FILTER_VALIDATE_BOOLEAN) : ($props['pvp'] ?? true);
-        $this->difficulty = $props['difficulty'] ?? null;
-        $this->gamemode = $props['gamemode'] ?? $props['level-type'] ?? null;
-        $this->view_distance = $props['view-distance'] ?? null;
-        $this->spawn_protection = $props['spawn-protection'] ?? null;
-        $this->whitelist = isset($props['white-list']) ? filter_var($props['white-list'], FILTER_VALIDATE_BOOLEAN) : ($props['white_list'] ?? false);
-        $this->accepts_transfers = isset($props['accepts-transfers']) ? filter_var($props['accepts-transfers'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->allow_flight = isset($props['allow-flight']) ? filter_var($props['allow-flight'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->allow_nether = isset($props['allow-nether']) ? filter_var($props['allow-nether'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->enable_query = isset($props['enable-query']) ? filter_var($props['enable-query'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->enable_rcon = isset($props['enable-rcon']) ? filter_var($props['enable-rcon'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->enable_command_block = isset($props['enable-command-block']) ? filter_var($props['enable-command-block'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->force_gamemode = isset($props['force-gamemode']) ? filter_var($props['force-gamemode'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->hardcore = isset($props['hardcore']) ? filter_var($props['hardcore'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->level_name = $props['level-name'] ?? $props['level_name'] ?? null;
-        $this->level_seed = $props['level-seed'] ?? null;
-        $this->level_type = $props['level-type'] ?? null;
-        $this->network_compression_threshold = $props['network-compression-threshold'] ?? null;
-        $this->max_tick_time = $props['max-tick-time'] ?? null;
-        $this->op_permission_level = $props['op-permission-level'] ?? null;
-        $this->rcon_password = $props['rcon.password'] ?? $props['rcon_password'] ?? null;
-        $this->server_port = $props['server-port'] ?? $props['server_port'] ?? null;
-        $this->query_port = $props['query.port'] ?? $props['query_port'] ?? null;
-        $this->simulation_distance = $props['simulation-distance'] ?? null;
-        $this->spawn_monsters = isset($props['spawn-monsters']) ? filter_var($props['spawn-monsters'], FILTER_VALIDATE_BOOLEAN) : null;
-        $this->sync_chunk_writes = isset($props['sync-chunk-writes']) ? filter_var($props['sync-chunk-writes'], FILTER_VALIDATE_BOOLEAN) : null;
+        foreach (self::ALL_FIELDS as $field) {
+            $property = $this->propertyMapping[$field] ?? $field;
+            $value = $props[$property] ?? null;
+
+            if ($this->fieldTypes[$field] === 'bool') {
+                $default = in_array($field, ['online_mode', 'pvp']) ? true : false;
+                $this->{$field} = $this->toBool($value, $default);
+            } else {
+                $this->{$field} = $value;
+            }
+        }
+
         $this->raw = $content;
     }
 
@@ -401,43 +548,7 @@ final class ServerProperties extends ServerFormPage
         }
 
         $currentState = $this->form->getState();
-        $get = fn($k, $fallback = null) => $currentState[$k] ?? $fallback;
-
-        $props = $this->originalProps;
-
-        // Update known properties
-        if ($this->isPropertyAvailable('accepts_transfers')) $props['accepts-transfers'] = $get('accepts_transfers', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('allow_flight')) $props['allow-flight'] = $get('allow_flight', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('allow_nether')) $props['allow-nether'] = $get('allow_nether', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('broadcast_console_to_ops')) $props['broadcast-console-to-ops'] = $get('broadcast_console_to_ops', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('debug')) $props['debug'] = $get('debug', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('difficulty') && !is_null($get('difficulty'))) $props['difficulty'] = $get('difficulty');
-        if ($this->isPropertyAvailable('enable_command_block')) $props['enable-command-block'] = $get('enable_command_block', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('enable_query')) $props['enable-query'] = $get('enable_query', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('enable_rcon')) $props['enable-rcon'] = $get('enable_rcon', false) ? 'true' : 'false';
-        $props['enable-status'] = 'true';
-        if ($this->isPropertyAvailable('force_gamemode')) $props['force-gamemode'] = $get('force_gamemode', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('gamemode')) $props['gamemode'] = $get('gamemode') ?? 'survival';
-        if ($this->isPropertyAvailable('hardcore')) $props['hardcore'] = $get('hardcore', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('max_players')) $props['max-players'] = $get('max_players') ?? 20;
-        if ($this->isPropertyAvailable('max_tick_time') && !is_null($get('max_tick_time'))) $props['max-tick-time'] = $get('max_tick_time');
-        if ($this->isPropertyAvailable('level_name') && !is_null($get('level_name'))) $props['level-name'] = $get('level_name');
-        if ($this->isPropertyAvailable('level_seed') && !is_null($get('level_seed'))) $props['level-seed'] = $get('level_seed');
-        if ($this->isPropertyAvailable('level_type') && !is_null($get('level_type'))) $props['level-type'] = $get('level_type');
-        if ($this->isPropertyAvailable('motd')) $props['motd'] = $get('motd') ?? 'A Minecraft Server';
-        if ($this->isPropertyAvailable('network_compression_threshold')) $props['network-compression-threshold'] = $get('network_compression_threshold') ?? 256;
-        if ($this->isPropertyAvailable('online_mode')) $props['online-mode'] = $get('online_mode', true) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('op_permission_level') && !is_null($get('op_permission_level'))) $props['op-permission-level'] = $get('op_permission_level');
-        if ($this->isPropertyAvailable('pvp')) $props['pvp'] = $get('pvp', true) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('rcon_password') && !is_null($get('rcon_password'))) $props['rcon.password'] = $get('rcon_password');
-        if ($this->isPropertyAvailable('server_port') && !is_null($get('server_port'))) $props['server-port'] = $get('server_port');
-        if ($this->isPropertyAvailable('query_port') && !is_null($get('query_port'))) $props['query.port'] = $get('query_port');
-        if ($this->isPropertyAvailable('simulation_distance') && !is_null($get('simulation_distance'))) $props['simulation-distance'] = $get('simulation_distance');
-        if ($this->isPropertyAvailable('spawn_monsters')) $props['spawn-monsters'] = $get('spawn_monsters', false) ? 'true' : 'false';
-        if ($this->isPropertyAvailable('spawn_protection')) $props['spawn-protection'] = $get('spawn_protection') ?? 0;
-        if ($this->isPropertyAvailable('sync_chunk_writes') && !is_null($get('sync_chunk_writes'))) $props['sync-chunk-writes'] = $get('sync_chunk_writes') ? 'true' : 'false';
-        if ($this->isPropertyAvailable('view_distance')) $props['view-distance'] = $get('view_distance') ?? 10;
-        if ($this->isPropertyAvailable('whitelist')) $props['white-list'] = $get('whitelist', false) ? 'true' : 'false';
+        $props = $this->mapStateToProperties($currentState);
 
         $lines = [];
         $lines[] = '#Minecraft server properties';
@@ -471,20 +582,12 @@ final class ServerProperties extends ServerFormPage
 
     private function parseProperties(string $content): array
     {
-        $out = [];
-        $lines = preg_split('/\r\n|\r|\n/', $content);
-        foreach ($lines as $line) {
+        return array_reduce(preg_split('/\r\n|\r|\n/', $content) ?? [], function($carry, $line) {
             $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#')) {
-                continue;
-            }
-            $parts = explode('=', $line, 2);
-            if (count($parts) === 2) {
-                $key = trim($parts[0]);
-                $value = trim($parts[1]);
-                $out[$key] = $value;
-            }
-        }
-        return $out;
+            if ($line === '' || str_starts_with($line, '#')) return $carry;
+            [$key, $value] = array_map('trim', explode('=', $line, 2) + [null, null]);
+            if ($key && $value !== null) $carry[$key] = $value;
+            return $carry;
+        }, []);
     }
 }
