@@ -17,6 +17,12 @@ use Filament\Schemas\Schema;
 use App\Filament\Server\Pages\ServerFormPage;
 use Filament\Notifications\Notification;
 
+/**
+ * ServerProperties page for managing Minecraft server properties.
+ *
+ * This page dynamically displays form fields based on the properties present in the server's server.properties file.
+ * Only available properties are shown, and the raw editor allows full control over the file content.
+ */
 final class ServerProperties extends ServerFormPage
 {
     protected static ?string $navigationLabel = 'Minecraft Properties';
@@ -116,6 +122,9 @@ final class ServerProperties extends ServerFormPage
         'query_port' => 'query.port',
     ];
 
+    /**
+     * Mount the page and load server properties.
+     */
     public function mount(): void
     {
         parent::mount();
@@ -165,12 +174,18 @@ final class ServerProperties extends ServerFormPage
         $this->originalRaw = $this->raw ?? '';
     }
 
+    /**
+     * Check if a property is available in the server.properties file.
+     */
     private function isPropertyAvailable(string $field): bool
     {
         $property = $this->propertyMapping[$field] ?? $field;
         return in_array($property, $this->availableProperties);
     }
 
+    /**
+     * Build the form schema dynamically based on available properties.
+     */
     public function form(Schema $schema): Schema
     {
         $basicComponents = [];
@@ -384,6 +399,10 @@ final class ServerProperties extends ServerFormPage
         $this->raw = $content;
     }
 
+    /**
+     * Save the server properties to the file.
+     * If the raw content was edited, save it directly; otherwise, build from form fields.
+     */
     public function save(): void
     {
         /** @var Server|null $server */
@@ -471,6 +490,9 @@ final class ServerProperties extends ServerFormPage
         }
     }
 
+    /**
+     * Parse the server.properties content into an associative array.
+     */
     private function parseProperties(string $content): array
     {
         $out = [];
